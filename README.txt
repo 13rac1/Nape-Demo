@@ -1,10 +1,7 @@
-Haxe NME with Physaxe demo
-By astro75 and eosrei
+Haxe NME with Nape demo
+By eosrei, based on a physaxe demo by astro75.
 
-Demo of physaxe library using tilesheets. Uses Accelerometer data if available to adjust gravity.
+Demo of the Nape library using tilesheets. Uses Accelerometer data if available to adjust gravity.
 Click to create additional objects.
 
-There is no limit on the number of on screen objects, so at a certain point, depending on your device, Physaxe will
-begin to act odd.
-
-Original code from: http://www.haxenme.org/community/forums/programming-with-haxe/physics-example-and-some-questions/
+Code is forked from and modified to use Nape instead of Physaxe: https://github.com/eosrei/Physaxe-Demo

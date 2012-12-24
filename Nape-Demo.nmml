@@ -14,7 +14,7 @@
   <classpath name="Source" />
 
   <haxelib name="nme" />
-  <haxelib name="physaxe" />
+  <haxelib name="nape" />
 
   <assets path="Assets" rename="assets" include="*" exclude="nme.svg" />
 

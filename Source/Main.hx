@@ -14,29 +14,32 @@ import nme.events.MouseEvent;
 import nme.geom.Rectangle;
 import nme.Lib;
 import nme.ui.Accelerometer;
-import phx.Body;
-import phx.col.AABB;
-import phx.col.SortedList;
-import phx.Polygon;
-import phx.Shape;
-import phx.Vector;
-import phx.World;
+
+import nape.geom.Vec2;
+import nape.phys.Body;
+import nape.phys.BodyType;
+import nape.shape.Polygon;
+import nape.space.Space;
+#if flash
+	import nape.util.BitmapDebug;
+#else
+	import nape.util.ShapeDebug;
+#end
+import nape.util.Debug;
 
 
 class Main extends Sprite {
+	var space:Space;
+	var debug:Debug;
+
 	// Storage of the NME logo bitmap
 	public static var bitmapLogo:BitmapData;
-
-	// StageWidth
-	public static var sw:Int;
-	// StageHeight
-	public static var sh:Int;
 	
 	// Store the last time, for time difference calculations
 	public var lastTime:Int;
 	
 	// Physics scaling, adjust to mimic gravity
-	static public inline var PHYSICS_SCALE:Float = 100;
+	static public inline var PHYSICS_SCALE:Float = 800;
 	// Size of the boxes
 	public static inline var BOX_SIZE:Int = 20;
 	
@@ -44,34 +47,43 @@ class Main extends Sprite {
 	var tilesheet:Tilesheet;
 	// The tilesheet drawlist, what to draw
 	var drawList:Array<Float>;
-	// The physaxe world
-	private var world:World;
 
-	private function construct () {
+	/**
+	 * Event.ADDED_TO_STAGE listener, insantiaites remainder of program.
+	 * @param	event
+	 */
+	private function construct (event:Event) {
+		// Remove self as a listener.
+		removeEventListener(Event.ADDED_TO_STAGE, construct);
+
 		Lib.trace("construct() called");
 		// Setup stage.
 		stage.align = StageAlign.TOP_LEFT;
 		stage.scaleMode = StageScaleMode.NO_SCALE;
 		
-		// Store stage height/width
-		resize ();
-		
-		// Create a new bounding box to limit the world
-		var size = new AABB( -1000, -1000, 1000, 1000);
-		// Create a sorted list to store the bodies.
-		var bf = new SortedList();
-		// Create the world
-		world = new World(size, bf);
-		// Apply gravity.
-		world.gravity = new Vector(0, PHYSICS_SCALE);
-		//world.sleepEpsilon = 0;
-			
+		// Create the world with gravity
+		var gravity = Vec2.weak(0, 700);
+		space = new Space(gravity);
+
+		var w = stage.stageWidth;
+		var h = stage.stageHeight;
+
+		// Create a new BitmapDebug screen matching stage dimensions.
+		#if flash
+			debug = new BitmapDebug(w, h, 0x333333, true);
+		#else
+			debug = new ShapeDebug(w, h);
+		#end
+		addChild(debug.display);
+
 		// Create world bounds.
-		createBox(-20, 0, 40, sh, false);
-		createBox(sw - 20, 0, 40, sh, false);
-		createBox(0, -20, sw, 40, false);
-		createBox(0, sh-20, sw, 40, false);
-		
+		var walls = new Body(BodyType.STATIC);
+		walls.shapes.add(new Polygon(Polygon.rect(0, 0, w, 10)));
+		walls.shapes.add(new Polygon(Polygon.rect(0, 0, 10, h)));
+		walls.shapes.add(new Polygon(Polygon.rect(0, h - 10, w, 10)));
+		walls.shapes.add(new Polygon(Polygon.rect(w - 10, 0, 10, h)));
+		walls.space = space;
+
 		// Init drawList for drawTiles
 		drawList = new Array<Float>();
 		// Load logo bitmap image
@@ -83,9 +95,9 @@ class Main extends Sprite {
 		// Add the Rectangle as the first Tile
 		tilesheet.addTileRect(rect);
 		
-		// Create the initial 40 on-screen boxes.
-		for (i in 0...40) {
-			createBox(Math.random() * stage.stageWidth, Math.random() * stage.stageHeight, BOX_SIZE, BOX_SIZE, true);
+		// Create the initial 30 on-screen boxes.
+		for (i in 0...30) {
+			createBox(Math.random() * w, Math.random() * h, BOX_SIZE, BOX_SIZE);
 		}
 				
 		// Add FPS display
@@ -99,7 +111,7 @@ class Main extends Sprite {
 
 		// Add Event listeners
 		stage.addEventListener(MouseEvent.CLICK, stage_onClick);
-		stage.addEventListener(Event.RESIZE, stage_onResize);
+		//stage.addEventListener(Event.RESIZE, stage_onResize);
 		stage.addEventListener(Event.ENTER_FRAME, update);
 	}
 	
@@ -109,33 +121,17 @@ class Main extends Sprite {
 	 * @param	y
 	 * @param	width
 	 * @param	height
-	 * @param	dynamicBody
-	 * @return	The created Body or null
+	 * @return	The created Body
 	 */
-	private function createBox (x:Float, y:Float, width:Float, height:Float, dynamicBody:Bool):Body {
-		if (dynamicBody) {
-			// Create a new phyaxe Body
-			var b:Body = new Body(x, y);
-			// Create a new physaxe Shape, without a shape the body is nothing.
-			var shape:Shape = Shape.makeBox(width, height);
-			// Specify the friction coefficient of the shape
-			shape.material.friction = 0.1;
-			// Add the shape to the Body.
-			b.addShape(shape);
-
-			// Circle test.
-			//b.addShape(new phx.Circle(width/2, new Vector(0,0)));
-			// Update physics after changing the Body's Shape.
-			b.updatePhysics();
-			// Add the Body to the World
-			world.addBody(b);
-			return b;
-		}
-		else {
-			// Create a Static non-moving shape.
-			world.addStaticShape(Shape.makeBox(width, height, x, y));
-			return null;
-		}
+	private function createBox (x:Float, y:Float, width:Float, height:Float):Body {
+		// Create a new nape Body
+		var box = new Body(BodyType.DYNAMIC);
+		// Create a new Polygon, without shape the body is nothing.
+		box.shapes.add(new Polygon(Polygon.box(width, height)));
+		box.position.setxy(x, y);
+		// Add the shape to the space.
+		box.space = space;
+		return box;
 	}
 	
 	/**
@@ -160,29 +156,30 @@ class Main extends Sprite {
 			var ay = PHYSICS_SCALE * -acc.y;
 			//var az = acc.z;
 			// Set gravity vector
-			world.gravity.set(ax, ay);
+			var gravity = Vec2.weak(ax, ay);
+			space.gravity = gravity;
 		}
 		#end
 		
-		// Update world physics, time X 4 to better simulate earth gravity
-		world.step(dTime * 4, 20);
-		
-		// The Physaxe debug world drawing
-        //var g = nme.Lib.current.graphics;
-        //g.clear();
-        //var fd = new phx.FlashDraw(g);
-        //fd.drawCircleRotation = true;
-        //fd.drawWorld(world);
+		// Step forward in simulation by the required number of seconds.
+		space.step(1 / stage.frameRate);
+		//space.step(dTime);
+		// Render Space to the debug draw. (Note: Transparent only for Flash)
+		//debug.clear();
+		//debug.draw(space);
+		//debug.flush();
 		
 		// Create the drawList for drawTiles
 		var i = 0;
 		var box_sqrt = BOX_SIZE / Math.sqrt(2);
-		for (c in world.bodies) {
-			drawList[i++] = c.x - Math.cos(c.a+Math.PI/4) * box_sqrt;
-			drawList[i++] = c.y - Math.sin(c.a+Math.PI/4) * box_sqrt;
-			drawList[i++] = 0;
-			drawList[i++] = 0.15;
-			drawList[i++] = -c.a;
+		for (c in space.bodies) {
+			if (c.isDynamic()) {
+				drawList[i++] = c.position.x - Math.cos(c.rotation+Math.PI/4) * box_sqrt;
+				drawList[i++] = c.position.y - Math.sin(c.rotation+Math.PI/4) * box_sqrt;
+				drawList[i++] = 0;
+				drawList[i++] = 0.15;
+				drawList[i++] = -c.rotation;
+			}
 		}
 		// Clear the current display
 		this.graphics.clear();
@@ -197,33 +194,14 @@ class Main extends Sprite {
 	private function stage_onClick(event:MouseEvent):Void {
 		var range = PHYSICS_SCALE * 3;
 		var delta = range / 2;
-		for (i in 0...10) {
+		for (i in 0...4) {
 			// Create a new box at the mouse x/y
-			var b = createBox(event.stageX, event.stageY, BOX_SIZE, BOX_SIZE, true);
+			var b = createBox(event.stageX, event.stageY, BOX_SIZE, BOX_SIZE);
 			// Set a random speed/direction based on PHYSICS_SCALE
-			b.setSpeed(Math.random() * range - delta, Math.random() * range - delta);
+			b.velocity = Vec2.weak(Math.random() * range - delta, Math.random() * range - delta);
 		}
 	}
 	
-	
-	/**
-	 * Stage onResize event listener
-	 * @param	event
-	 */
-	private function stage_onResize (event:Event):Void {
-		// @todo: Actually resize the content.
-		resize();
-	}
-
-	/**
-	 * Called by resize listener, stores stage info.
-	 */
-	private function resize () {
-		// @todo remove?
-		sw = stage.stageWidth;
-		sh = stage.stageHeight;
-	}
-
 	/**
 	 * Program execution entry function
 	 */
@@ -239,17 +217,6 @@ class Main extends Sprite {
 	public function new () {
 		super ();
 		// Add a listener to wait for the stage to be available.
-		addEventListener (Event.ADDED_TO_STAGE, this_onAddedToStage);
-	}
-	
-	/**
-	 * Event.ADDED_TO_STAGE listener, insantiaites remainder of program.
-	 * @param	event
-	 */
-	private function this_onAddedToStage (event:Event):Void {
-		// Remove self as a listener.
-		removeEventListener(Event.ADDED_TO_STAGE, this_onAddedToStage);
-		// Call program constructor, which expects existing stage.
-		construct();
+		addEventListener (Event.ADDED_TO_STAGE, construct);
 	}
 }
