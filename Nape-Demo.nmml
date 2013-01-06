@@ -23,5 +23,6 @@
   <ndll name="nme" haxelib="nme" />
 
   <icon name="Assets/nme.svg" />
+  <haxedef name="NAPE_RELEASE_BUILD" />
 
 </project>
