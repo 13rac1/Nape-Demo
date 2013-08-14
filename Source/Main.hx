@@ -1,19 +1,20 @@
 package;
 
-import nme.Assets;
-import nme.display.Bitmap;
-import nme.display.BitmapData;
-import nme.display.FPS;
-import nme.display.Graphics;
-import nme.display.Sprite;
-import nme.display.StageAlign;
-import nme.display.StageScaleMode;
-import nme.display.Tilesheet;
-import nme.events.Event;
-import nme.events.MouseEvent;
-import nme.geom.Rectangle;
-import nme.Lib;
-import nme.ui.Accelerometer;
+import openfl.Assets;
+import flash.display.Bitmap;
+import flash.display.BitmapData;
+import openfl.display.FPS;
+import flash.display.Graphics;
+import flash.display.Sprite;
+import flash.display.StageAlign;
+import flash.display.StageScaleMode;
+import openfl.display.Tilesheet;
+import flash.events.Event;
+import flash.events.MouseEvent;
+import flash.geom.Rectangle;
+import flash.Lib;
+import flash.sensors.Accelerometer;
+import flash.events.AccelerometerEvent;
 
 import nape.geom.Vec2;
 import nape.phys.Body;
@@ -31,8 +32,11 @@ import nape.util.Debug;
 class Main extends Sprite {
 	var space:Space;
 	var debug:Debug;
+  var accelX:Float;
+  var accelY:Float;
+  var accelZ:Float;
 
-	// Storage of the NME logo bitmap
+	// Storage of the flash logo bitmap
 	public static var bitmapLogo:BitmapData;
 	
 	// Store the last time, for time difference calculations
@@ -97,7 +101,7 @@ class Main extends Sprite {
 		
 		// Create the initial 30 on-screen boxes.
 		for (i in 0...30) {
-			createBox(Math.random() * w, Math.random() * h, BOX_SIZE, BOX_SIZE);
+			createBox(100, 100, BOX_SIZE, BOX_SIZE);
 		}
 				
 		// Add FPS display
@@ -113,8 +117,22 @@ class Main extends Sprite {
 		stage.addEventListener(MouseEvent.CLICK, stage_onClick);
 		//stage.addEventListener(Event.RESIZE, stage_onResize);
 		stage.addEventListener(Event.ENTER_FRAME, update);
+    if (Accelerometer.isSupported) {
+      var accl:Accelerometer = new Accelerometer();
+      accl.addEventListener(AccelerometerEvent.UPDATE, onAcclUpdate);
+    }
 	}
-	
+
+  /**
+   * Update the current stored Accelerometer data
+   * @param event
+   */
+  function onAcclUpdate(event:AccelerometerEvent):Void {
+    accelX = event.accelerationX;
+    accelY = event.accelerationY;
+    accelZ = event.accelerationZ;
+  }
+
 	/**
 	 * Create a dynamic/static rectangle Shape in a Body
 	 * @param	x
@@ -150,10 +168,10 @@ class Main extends Sprite {
 
 		// If not Flash, attempt to use Accelerometer data
 		#if !flash
-		var acc = Accelerometer.get();
-		if (acc != null) {
-			var ax = PHYSICS_SCALE * acc.x;
-			var ay = PHYSICS_SCALE * -acc.y;
+
+		if (Accelerometer.isSupported) {
+			var ax = PHYSICS_SCALE * -accelX;
+		  var ay = PHYSICS_SCALE * accelY;
 			//var az = acc.z;
 			// Set gravity vector
 			var gravity = Vec2.weak(ax, ay);
@@ -178,12 +196,12 @@ class Main extends Sprite {
 				drawList[i++] = c.position.y - Math.sin(c.rotation+Math.PI/4) * box_sqrt;
 				drawList[i++] = 0;
 				drawList[i++] = 0.15;
-				drawList[i++] = -c.rotation;
+				drawList[i++] = c.rotation;
 			}
 		}
 		// Clear the current display
 		this.graphics.clear();
-		// Draw the tiles. http://code.google.com/p/nekonme/source/browse/trunk/nme/display/Tilesheet.hx?r=1600
+    // Draw the tiles.
 		tilesheet.drawTiles(this.graphics, drawList, false, Tilesheet.TILE_SCALE | Tilesheet.TILE_ROTATION);
 	}
 	

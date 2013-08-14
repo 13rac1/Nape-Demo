@@ -9,7 +9,8 @@
 
   <window width="640" height="480" fps="60" orientation="portrait" resizable="true" background="0x000000" />
   <window width="0" height="0" if="fullscreen" />
-
+	
+	<window width="0" height="0" vsync="true" if="cpp" />
   <set name="BUILD_DIR" value="Export" />
   <classpath name="Source" />
 
@@ -20,7 +21,7 @@
 
   <ndll name="std" />
   <ndll name="zlib" />
-  <ndll name="nme" haxelib="nme" />
+  <ndll name="nme" haxelib="openfl-native" />
 
   <icon name="Assets/nme.svg" />
   <haxedef name="NAPE_RELEASE_BUILD" />
